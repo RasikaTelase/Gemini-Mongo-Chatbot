@@ -1,6 +1,6 @@
 
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 from pymongo import MongoClient
 from datetime import datetime
 
