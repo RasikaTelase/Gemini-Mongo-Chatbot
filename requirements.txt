@@ -1,5 +1,5 @@
 streamlit
-google-generativeai>=1.2.0
+google-genai
 pymongo>=4.6.1
 python-dotenv>=1.0.1
 certifi
