@@ -5,7 +5,3 @@ python-dotenv>=1.0.1
 certifi
 
 
-# google-genai
-# pymongo>=4.6.1
-# python-dotenv>=1.0.1
-# certifi
