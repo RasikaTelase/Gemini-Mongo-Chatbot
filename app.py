@@ -1,57 +1,55 @@
-
 import streamlit as st
 from google import genai
 from pymongo import MongoClient
 from datetime import datetime
 
 # -------------------- CONFIG --------------------
-# NOTE: Replace with your actual keys/URIs
+# NOTE: It is BEST PRACTICE to load these from Render Environment Variables!
+# For deployment, remove the hardcoded value and rely on os.getenv
 GEMINI_API_KEY = "AIzaSyDKRuaMZFzdWJhhjPqVLjRXOvKxlk1tkyI"
 MONGO_URI = "mongodb+srv://riteshdeshmukh8459_db_user:2323@cluster0.mretvqm.mongodb.net/"
 
-# Configure Gemini
-# genai.configure(api_key=GEMINI_API_KEY)
+# Configure Gemini Client
+# This uses the new SDK structure and the API key
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Connect MongoDB
 try:
+    # Use a specific variable name for MongoDB client
     mongo_client = MongoClient(MONGO_URI)
-    # Database for chat history
+    
+    # Database and Collections for Chat History
     chat_db = mongo_client["chatbot_db"]
     chats_collection = chat_db["chats"]
 
-    # === 🚨 CRITICAL: UPDATE THESE DATABASE/COLLECTION NAMES ===
-    # Based on your Compass image:
-    data_db_name = "student_data" # <-- VERIFY your Database Name
-    collection_name = "student" # <-- VERIFY your Collection Name
+    # Database and Collection for Student Data
+    data_db_name = "student_data"
+    collection_name = "student"
+    data_db = mongo_client[data_db_name]
+    student_collection = data_db[collection_name]
     
-    # Connect to the database and collection containing the student records
-    data_db = mongo_client[data_db_name] 
-    student_collection = data_db[collection_name] 
-    # ==========================================================
-
     mongo_status = True
 except Exception as e:
     mongo_status = False
-    st.error(f"MongoDB connection error: {e}")
+    # Display the error in the Streamlit app if connection fails
+    st.error(f"❌ MongoDB connection error: {e}")
 
 # -------------------- RAG FUNCTION (Database Retrieval) --------------------
 
 def get_mongo_context(user_query):
     """Searches the student collection for relevant data based on the user's query."""
     
-    # Simple keyword extraction to find a student name (Alice, Bob, Charlie)
     query_lower = user_query.lower()
     name_search = None
     
-    # You can expand this logic to check more names or use a more advanced search
+    # Simple keyword extraction (e.g., "What is Alice's grade?")
     if "alice" in query_lower:
         name_search = "Alice"
     elif "bob" in query_lower:
         name_search = "Bob"
     elif "charlie" in query_lower:
         name_search = "Charlie"
-    
+        
     if name_search:
         try:
             # Find the document by name
@@ -64,6 +62,8 @@ def get_mongo_context(user_query):
                 context_string = f"Student Record: {student_doc}"
                 return context_string
         except Exception as e:
+            # Note: This warning will only display if the connection was successful, 
+            # but a query failed later.
             st.warning(f"Error accessing student data: {e}. Answering with general knowledge.")
             return None
             
@@ -76,6 +76,7 @@ st.title("💬 Gemini + MongoDB Chatbot")
 if mongo_status:
     st.success(f"✅ Connected to MongoDB. RAG enabled for '{data_db_name}.{collection_name}'.")
 else:
+    # If the app couldn't connect on startup, display the error status
     st.error("❌ MongoDB not connected")
 
 # -------------------- LOGIN / ROLE SELECTION --------------------
@@ -98,7 +99,8 @@ if st.button("Ask Gemini"):
     if user_input:
         try:
             # --- RAG LOGIC START ---
-            mongo_context = get_mongo_context(user_input)
+            # FIX: Changed user_query to user_input to prevent NameError
+            mongo_context = get_mongo_context(user_input) 
             
             if mongo_context:
                 st.info("🔍 Data found! Using RAG to answer from MongoDB context.")
@@ -113,16 +115,17 @@ if st.button("Ask Gemini"):
                 # Full Prompt: Combines the context and the user question
                 full_prompt = f"CONTEXT: {mongo_context}\n\nQUESTION: {user_input}"
                 
-                # Initialize model with system instruction
-               response = client.models.generate_content(
+                # FIX: Corrected Gemini API call using client.models.generate_content
+                response = client.models.generate_content(
                     model='gemini-2.5-flash',
                     contents=full_prompt,
                     config={"system_instruction": system_instruction}
                 )
+            
             else:
                 # Fallback: Use general knowledge if no relevant student data is found
                 st.info("🌍 No specific data found. Answering with Gemini's general knowledge.")
-                # *** FIX 2: Correct Fallback Gemini API call ***
+                # FIX: Corrected Fallback Gemini API call
                 response = client.models.generate_content(
                     model='gemini-2.5-flash',
                     contents=user_input
@@ -145,6 +148,7 @@ if st.button("Ask Gemini"):
             else:
                 st.warning("⚠️ Gemini did not return any answer.")
         except Exception as e:
+            # This catch will handle Gemini API key issues or other runtime errors
             st.error(f"Gemini API Error: {e}")
     else:
         st.warning("Please enter a question first.")
@@ -162,9 +166,9 @@ else:
 
 for chat in all_chats:
     st.markdown(f"""
-    **👤 {chat['username']}** ({chat['role']})  
-    ❓ **Q:** {chat['question']}  
-    💬 **A:** {chat['answer']}  
+    **👤 {chat['username']}** ({chat['role']})  
+    ❓ **Q:** {chat['question']}  
+    💬 **A:** {chat['answer']}  
     🕒 {chat['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}
     ---
     """)
