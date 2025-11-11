@@ -15,9 +15,9 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Connect MongoDB
 try:
-    client = MongoClient(MONGO_URI)
+    mongo_client = MongoClient(MONGO_URI)
     # Database for chat history
-    chat_db = client["chatbot_db"]
+    chat_db = mongo_client["chatbot_db"]
     chats_collection = chat_db["chats"]
 
     # === 🚨 CRITICAL: UPDATE THESE DATABASE/COLLECTION NAMES ===
@@ -26,7 +26,7 @@ try:
     collection_name = "student" # <-- VERIFY your Collection Name
     
     # Connect to the database and collection containing the student records
-    data_db = client[data_db_name] 
+    data_db = mongo_client[data_db_name] 
     student_collection = data_db[collection_name] 
     # ==========================================================
 
@@ -114,15 +114,19 @@ if st.button("Ask Gemini"):
                 full_prompt = f"CONTEXT: {mongo_context}\n\nQUESTION: {user_input}"
                 
                 # Initialize model with system instruction
-                model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
-                response = model.generate_content(full_prompt)
-            
+               response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=full_prompt,
+                    config={"system_instruction": system_instruction}
+                )
             else:
                 # Fallback: Use general knowledge if no relevant student data is found
                 st.info("🌍 No specific data found. Answering with Gemini's general knowledge.")
-                model = genai.GenerativeModel('gemini-2.5-flash')
-                response = model.generate_content(user_input)
-
+                # *** FIX 2: Correct Fallback Gemini API call ***
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=user_input
+                )
             # --- RAG LOGIC END ---
 
             if response and response.text:
