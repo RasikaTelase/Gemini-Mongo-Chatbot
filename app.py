@@ -10,7 +10,8 @@ GEMINI_API_KEY = "AIzaSyDKRuaMZFzdWJhhjPqVLjRXOvKxlk1tkyI"
 MONGO_URI = "mongodb+srv://riteshdeshmukh8459_db_user:2323@cluster0.mretvqm.mongodb.net/"
 
 # Configure Gemini
-genai.configure(api_key=GEMINI_API_KEY)
+# genai.configure(api_key=GEMINI_API_KEY)
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Connect MongoDB
 try:
